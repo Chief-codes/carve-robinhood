@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {feedWindow,mergeFeed} from '../src/lib/feed-window';
+test('pagination remains exact as new launches arrive',()=>{assert.deepEqual(feedWindow(3n,null),{indices:[2n,1n,0n],cursor:0n});const first=feedWindow(30n,null);assert.equal(first.cursor,18n);assert.deepEqual(feedWindow(32n,first.cursor).indices,[17n,16n,15n,14n,13n,12n,11n,10n,9n,8n,7n,6n]);});
+test('huge factory counts are not rounded; empty and invalid windows are bounded',()=>{const count=2n**150n;assert.equal(feedWindow(count,null).indices[0],count-1n);assert.equal(feedWindow(count,null).indices.length,12);assert.deepEqual(feedWindow(0n,null).indices,[]);assert.throws(()=>feedWindow(2n,3n));assert.throws(()=>feedWindow(1n,null,1000));});
+test('live refresh replaces metrics, preserves older cards and removes duplicates',()=>{const a={index:0n,token:'0xaaa',cap:1},b={index:1n,token:'0xbbb',cap:2};const rows=mergeFeed([b,a],[{...b,cap:3},{index:2n,token:'0xccc',cap:4}],3n);assert.deepEqual(rows.map(r=>r.cap),[4,3,1]);assert.equal(a.cap,1);assert.equal(b.cap,2);assert.equal(mergeFeed([a],[{index:1n,token:'0xAAA',cap:4}],2n).length,1);});
+test('reorged indices and shrinking counts do not leave ghost rows',()=>{assert.deepEqual(mergeFeed([{index:0n,token:'old'},{index:1n,token:'gone'}],[{index:0n,token:'replacement'}],1n),[{index:0n,token:'replacement'}]);});

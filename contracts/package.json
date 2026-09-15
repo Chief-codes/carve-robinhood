@@ -1,0 +1,8 @@
+{
+  "name": "carve-contract-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "devDependencies": { "solc": "0.8.37" },
+  "overrides": { "tmp": "0.2.7" },
+  "scripts": { "test": "forge test -vv", "build": "forge build" }
+}

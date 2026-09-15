@@ -1,0 +1,19 @@
+{
+  "name": "carve", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5188 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4188 --strictPort",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.23", "fflate": "0.8.3", "lucide-react": "1.46.0",
+    "react": "19.3.0", "react-dom": "19.3.0", "viem": "2.56.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0", "@types/node": "^22.0.0", "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0", "esbuild": "0.28.2", "solc": "0.8.37",
+    "tsx": "4.23.13", "typescript": "7.0.2", "vite": "8.3.0"
+  },
+  "engines": { "node": ">=22.12" }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*.local
+.sites-runtime/
+.netlify/
+contracts/out/
+contracts/cache/
+test-results/
+playwright-report/
+*.log

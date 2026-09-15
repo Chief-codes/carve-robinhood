@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = []
+remappings = ["@uniswap/v4-core/=vendor/v4-core-46c6834698c48bc4a463a86d8420f4eb1d7f3b75/"]
+fs_permissions = [{ access = "read", path = "./test/fixtures" }]
+solc = "scripts/solc-wrapper.mjs"
+optimizer = true
+optimizer_runs = 200
+evm_version = "cancun"
+via_ir = true
+
+[fuzz]
+runs = 256
