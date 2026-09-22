@@ -1,0 +1,24 @@
+.buyback-option {border-color:#4acd80;background:linear-gradient(125deg,rgba(34,125,69,.24),rgba(4,18,12,.95));box-shadow:inset 0 1px rgba(136,255,172,.12)}
+.buyback-option .eyebrow{color:#98ffb9;margin-bottom:14px}
+.buyback-switch {display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%;text-align:left;color:inherit;background:transparent;border:0;padding:8px 0;cursor:pointer}
+.buyback-switch strong{display:block;font-size:1.4rem;line-height:1.3}
+.buyback-switch small{display:block;margin-top:8px;color:#b6ccbe;font-size:.875rem}
+.buyback-switch-state{display:flex;align-items:center;gap:10px;font-weight:700;color:#b7c5bb}
+.switch-track{display:block;position:relative;width:54px;height:30px;flex:none;background:#283b30;border:1px solid #5b7564;border-radius:30px}
+.switch-track>span{position:absolute;width:22px;height:22px;left:3px;top:3px;background:#b7c5bb;border-radius:50%;transition:transform .18s ease}
+.enabled .switch-track{background:#5bef93;border-color:#97ffb8}
+.enabled .switch-track>span{background:#072414;transform:translateX(24px)}
+.enabled .buyback-switch-state{color:#9cffbf}
+.buyback-switch:focus-visible{outline:2px solid #a0ffc0;outline-offset:5px;border-radius:6px}
+.buyback-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0}
+.buyback-split>span{padding:12px;border:1px solid #3b6749;border-radius:8px;font-size:.875rem}
+.buyback-split strong{display:block;font-size:1.5rem;color:#a3ffc2}
+.buyback-readout{margin:18px 0;display:block!important}
+.buyback-readout .review-details>div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.release-choice{display:block;max-width:350px;margin-bottom:18px}
+.sample-gif{image-rendering:auto;object-fit:contain;border-radius:50%;width:72%!important;filter:drop-shadow(0 0 22px #16964755)}
+.brand-art .sample-gif{display:block;margin:auto;padding:12px 0 76px;animation:none}
+.brand-art:has(.sample-gif) .art-caption{bottom:68px;font-size:.7rem;line-height:1.4;max-width:290px;margin:auto;padding:0 10px}
+.preview-controls button{white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.switch-track>span{transition:none}}
+@media(max-width:520px){.buyback-switch strong{font-size:1.125rem}.buyback-switch{gap:12px}.buyback-switch-state{flex-direction:column;gap:4px;font-size:.75rem}}

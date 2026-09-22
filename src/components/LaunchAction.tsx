@@ -22,10 +22,10 @@ export function useTransactionSession(onProgress:(p:Progress)=>void,deployment:D
  return {w,getSession};
 }
 export function LaunchAction({draft}:{draft:Draft}){
- const curve=DEPLOYMENT.curveVersion===4,plan=v3LaunchPlan(draft),oldCreatorFee=!curve&&Number(draft.creatorFee||'0')!==0;
+ const curve=[4,5].includes(DEPLOYMENT.curveVersion||0),plan=v3LaunchPlan(draft),oldCreatorFee=!curve&&Number(draft.creatorFee||'0')!==0;
  const [progress,setProgress]=useState<Progress|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[result,setResult]=useState<Awaited<ReturnType<typeof launchDraft>>|null>(null);
  const {w,getSession}=useTransactionSession(setProgress);
- const identity=JSON.stringify([draft.name,draft.symbol,draft.creatorFee,draft.initialBuy,...Object.values(draft.assets).map(a=>a?.keccak)]);
+ const identity=JSON.stringify([draft.name,draft.symbol,draft.creatorFee,draft.autoBuyback===true,draft.initialBuy,...Object.values(draft.assets).map(a=>a?.keccak)]);
  useEffect(()=>{if(!busy){setResult(null);setError('');setProgress(null);}},[identity,w.address]);
  const run=async()=>{setBusy(true);setError('');try{const session=getSession(),store={read:readLocal,save:saveLocal},attemptKey='carve-ui-launch:'+DEPLOYMENT.factory+':'+session.account.toLowerCase()+':'+keccak256(stringToHex(identity));
  const attempt=await openLaunchAttempt(store,attemptKey,()=>crypto.randomUUID());
@@ -35,6 +35,7 @@ export function LaunchAction({draft}:{draft:Draft}){
  return <div className="live-launch-action">
  <p>Creation fee: <strong>0.0005 ETH</strong> + your initial buy and storage gas. {curve?<>Trading fee: <strong>1% Carve + {draft.creatorFee||'0'}% creator</strong>.</>:<>Pool trading fee: <strong>1% total</strong>. No additional creator trading fee.</>}</p>
  <p>{plan.inline?(curve?'One wallet approval includes the selected media, token, bonding curve and optional initial buy.':'One wallet approval includes the selected media, token, locked pool and optional initial buy.'):'Up to '+plan.transactions+' approvals for these files and the launch. Existing confirmed chunks and manifests are reused.'}</p>
+ {DEPLOYMENT.curveVersion===5&&<p><strong>Automatic buyback & burn: {draft.autoBuyback?'On':'Off'}.</strong> {draft.autoBuyback?'Your creator fee is split 20% creator revenue / 80% token buyback and burn. Trades trigger bounded processing; no timer or keeper. The choice is permanent, and eligible trades use extra gas.':'The full creator fee remains creator revenue.'}</p>}
  {oldCreatorFee&&<p className="warning">This saved draft includes an old creator-fee setting. Clear it in Set up your launch before continuing.</p>}
  {!DEPLOYMENT.launchEnabled||(!curve&&DEPLOYMENT.kind!=='v3')?<p className="muted">Launches are temporarily unavailable while the current release is being verified. Your draft and existing inscriptions remain saved.</p>:<>
  {!w.address?<WalletDialog/>:w.chainId!==4663?<button className="secondary full" onClick={()=>w.switchChain()}>Switch to Robinhood Chain</button>:<>

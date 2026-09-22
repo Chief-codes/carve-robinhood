@@ -1,6 +1,8 @@
-# Carve — current status, 16 September 2026
+# Carve — current status, 22 September 2026
 
-## Active release
+> Current website release is factory version 5 with optional trade-triggered buyback & burn. See [AUTO-RELEASE-2026-09-22.md](AUTO-RELEASE-2026-09-22.md) for the current addresses, source verification, exact fee split and test evidence. The user-approved deployment is complete. Sourcify reports exact matches for all four contracts; Blockscout submissions remain blocked by its security challenge. No live buyback-enabled test token has been launched by the agent.
+
+## Previous version-4 release — retained for older tokens
 The new curve-to-Uniswap-V4 release is deployed on Robinhood Chain (4663).
 - Deployment transaction: 0x8c6a5d317d3426ea17d70a7c2bb3001f3d08e87e94be765b4c1d55b7d73baa03, block 63884617.
 - Factory: 0xf843A997447E3eF9cf44a9078BBe870E7ef3F67c
@@ -44,3 +46,12 @@ Any nonempty image/audio/HTML combination is allowed. Total media <=24 KiB uses 
 
 ## Continuity
 Only modify Carve. No unrelated bots, accounts or old project files. Never request/store private keys. Never sign mainnet financial actions for the user. Preserve prior drafts, receipts and resumption journals.
+# 2026-09-22 — GIF preparation published; buyback remains pending
+
+- Replaced the earlier trailer-trimming GIF helper with a pinned, lazy-loaded Gifsicle WASM encoder in a bounded worker.
+- Local animation test: 1,481,371 bytes → 785,854 bytes, 10 frames and 100 centiseconds retained.
+- Structural validation, 12 MB upload limit, frame/pixel work bounds, 30-second per-attempt timeout, three bounded compression attempts and 1 MB prepared-output limit.
+- GIF uses the existing image slot; audio and HTML remain combinable. No new contract or mainnet transaction was needed for this frontend update. This turn did not perform a new onchain GIF launch.
+- Build + 47 frontend tests passed. Public upload/preview and CSP smoke test passed. Production dependency audit reported zero known vulnerabilities.
+- Production deploy: https://6ab277670ff503c18b59fdfc--carve-robinhood.netlify.app (https://carve-robinhood.netlify.app).
+- Creator-fee buyback is NOT deployed/enabled. Split-policy unit/fuzz tests (3 tests, 256 fuzz cases) passed; see BUYBACK-PENDING.md for architecture constraints and the outstanding execution-trigger decision. No current contracts/settings were changed.

@@ -1,0 +1,30 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const origin=process.env.CARVE_QA_URL||'http://127.0.0.1:5188';
+const browser=await chromium.launch({headless:true,channel:'chrome'});
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(origin+'/#/studio');
+ const toggle=page.getByRole('switch',{name:/Automatic buyback/});
+ await toggle.waitFor();assert.equal(await toggle.getAttribute('aria-checked'),'false');
+ await toggle.click();assert.equal(await toggle.getAttribute('aria-checked'),'true');
+ await page.getByLabel('Creator trading fee',{exact:false}).fill('1');
+ await page.getByRole('button',{name:'GIF demo',exact:true}).click();
+ await page.locator('.sample-gif').waitFor();
+ assert.equal(await page.locator('.sample-gif').evaluate(el=>el.complete&&el.naturalWidth>0),true);
+ await page.getByRole('button',{name:'Review inscription',exact:true}).click();
+ await page.getByText('Automatic buyback & burn: On.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Close review',exact:true}).click();
+ await toggle.scrollIntoViewIfNeeded();await page.screenshot({path:'/private/tmp/carve-auto-ui.png'});
+ await page.getByRole('link',{name:'Explore',exact:true}).click();
+ await page.getByLabel('Launch release').selectOption('previous');
+ await page.locator('.launch-card').first().waitFor({timeout:60000});
+ await page.goto(origin+'/#/explore?token=0x2c06a3e230FD4ba9D61Ee247C57879F7f1ae9841');
+ await page.getByRole('heading',{name:'Trade $CVCURVE'}).waitFor({timeout:60000});
+ assert.equal(await page.getByText('Automatic buyback & burn',{exact:true}).count(),0);
+ await page.getByRole('link',{name:'Docs',exact:true}).click();
+ await page.getByRole('heading',{name:'Optional automatic buyback & burn',exact:true}).waitFor();
+ assert.deepEqual(errors,[]);
+ console.log('Switch, GIF preview, review, previous feed/token routing and docs passed. No wallet or transactions used.');
+}finally{await browser.close();}

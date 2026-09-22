@@ -4,7 +4,7 @@ export const CHUNK_BYTES = 20 * 1024;
 export const MAX_FILE_BYTES = 1024 * 1024;
 export type AssetKind = 'image' | 'audio' | 'website';
 export type ContentAsset = { kind: AssetKind; name: string; mime: string; bytes: Uint8Array; originalBytes: number; sha256: string; keccak: `0x${string}`; };
-export type Draft = { version: 1; name: string; symbol: string; description: string; website: string; twitter: string; initialBuy: string; creatorFee?: string; assets: Partial<Record<AssetKind, ContentAsset>>; updatedAt: number; };
+export type Draft = { version: 1; name: string; symbol: string; description: string; website: string; twitter: string; initialBuy: string; creatorFee?: string; autoBuyback?: boolean; assets: Partial<Record<AssetKind, ContentAsset>>; updatedAt: number; };
 export const newDraft = (): Draft => ({version:1,name:'',symbol:'',description:'',website:'',twitter:'',initialBuy:'',assets:{},updatedAt:Date.now()});
 const accepted: Record<AssetKind,string[]> = {image:['image/png','image/jpeg','image/webp','image/gif'],audio:['audio/mpeg','audio/mp4','audio/wav','audio/x-wav','audio/ogg','audio/webm'],website:['text/html']};
 export function normalizeMime(kind:AssetKind, mime:string, name:string) {
@@ -67,6 +67,8 @@ export function validateDraft(d:Draft) {
   if(!Object.values(d.assets).some(Boolean)) issues.push('Add at least one image, sound or website. You can combine all three.');
   if(d.initialBuy&&!/^\d+(\.\d{1,18})?$/.test(d.initialBuy)) issues.push('Initial buy must be a valid ETH amount.');
   if(!/^(?:[0-9](?:\.\d{1,2})?|10(?:\.0{1,2})?)$/.test(d.creatorFee||'0')) issues.push('Creator fee must be between 0% and 10%, with at most two decimal places.');
+  if(d.autoBuyback!==undefined&&typeof d.autoBuyback!=='boolean')issues.push('Invalid buyback selection.');
+  if(d.autoBuyback&&Number(d.creatorFee||'0')<=0)issues.push('Set a creator fee above 0% to fund automatic buybacks, or turn buybacks off.');
   return issues;
 }
 export function exportDraft(d:Draft) {return JSON.stringify({...d,assets:Object.fromEntries(Object.entries(d.assets).map(([k,a])=>[k,{...a,bytes:bytesToHex(a!.bytes)}]))},null,2);}
@@ -74,6 +76,7 @@ export async function importDraft(text:string):Promise<Draft> {
   if(text.length>MAX_FILE_BYTES*8)throw new Error('Draft file is too large.');
   const value=JSON.parse(text);if(value.version!==1||typeof value.name!=='string'||typeof value.symbol!=='string')throw new Error('Not a Carve draft file.');
   const d=newDraft();
+  d.autoBuyback=value.autoBuyback===true;
   for(const k of ['name','symbol','description','website','twitter','initialBuy','creatorFee'] as const) if(typeof value[k]==='string')d[k]=value[k].slice(0,10000);
   for(const k of ['image','audio','website'] as AssetKind[]) {
     const a=value.assets?.[k];if(!a)continue;

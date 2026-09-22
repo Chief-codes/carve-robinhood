@@ -42,7 +42,7 @@ export async function verifyDeployment(s:Session){
  if(d.kind==='v3')return verifyV3Release(s.read,d);
  const code=await Promise.all([d.registry,d.factory,d.engine,d.router].map(address=>s.read.getCode({address})));
  if(code.some(c=>!c||c==='0x'))throw new Error('A configured contract is missing. Transactions are disabled.');
- if(d.curveVersion===4){
+ if((d.curveVersion===4||d.curveVersion===5)){
   for(const [i,key] of (['registry','factory','engine','router'] as const).entries())if(!d.codeHashes?.[key]||keccak256(code[i]!)!==d.codeHashes[key])throw new Error('Replacement runtime differs from the verified release.');
   const [version,limit,manager,managerCode]=await Promise.all([
    s.read.readContract({address:d.factory,abi:CURVE_FACTORY_ABI,functionName:'version'}),
@@ -50,7 +50,7 @@ export async function verifyDeployment(s:Session){
    s.read.readContract({address:d.engine,abi:CURVE_ENGINE_ABI,functionName:'POSITION_MANAGER'}),
    s.read.getCode({address:CURVE_POSITION_MANAGER}),
   ]);
-  if(version!==4n||limit!==24576n||!same(manager,CURVE_POSITION_MANAGER)||!managerCode||keccak256(managerCode)!==CURVE_POSITION_MANAGER_HASH)throw new Error('Replacement canonical position-manager verification failed.');
+  if(version!==BigInt(d.curveVersion!)||limit!==24576n||!same(manager,CURVE_POSITION_MANAGER)||!managerCode||keccak256(managerCode)!==CURVE_POSITION_MANAGER_HASH)throw new Error('Replacement canonical position-manager verification failed.');
  }
  const [registry,engine,factory,routerEngine,fee,supply,virtual,cap,maxCreator]=await Promise.all([
   s.read.readContract({address:d.factory,abi:FACTORY_ABI,functionName:'registry'}),
@@ -176,7 +176,7 @@ export async function inscribeAsset(s:Session,asset:ContentAsset){
 }
 
 export async function launchDraft(s:Session,draft:Draft){
- if((s.deployment||DEPLOYMENT).curveVersion===4)return (await import('./curve-launch')).launchCurveDraft(s,draft);
+ if([4,5].includes((s.deployment||DEPLOYMENT).curveVersion||0))return (await import('./curve-launch')).launchCurveDraft(s,draft);
  if((s.deployment||DEPLOYMENT).kind==='v3')return (await import('./v3-launch')).launchV3Draft(s,draft);
  // New launches must not accidentally use the previous private-curve architecture.
  if(!s.deployment)throw new Error('The immediate-trading upgrade is not deployed yet. Existing tokens remain readable.');

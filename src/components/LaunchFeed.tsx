@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {formatEther,zeroHash,type Address,type Hex} from 'viem';
 import {ArrowUpRight,Layers} from 'lucide-react';
-import {client,DEPLOYMENT,FACTORY_ABI,MARKET_ABI,TOKEN_ABI,short} from '../lib/chain';
+import {client,DEPLOYMENT,CURVE_DEPLOYMENT,type Deployment,FACTORY_ABI,MARKET_ABI,TOKEN_ABI,short} from '../lib/chain';
 import {DEFAULT_LAUNCH_FEED_OPTIONS,filterLaunchFeed,type LaunchFeedRow,type LaunchFeedOptions} from '../lib/launch-feed';
 import {prepareMetricsContext,readMarketSnapshot,readLifetimeCounterVolume,formatProgressPercent} from '../lib/market-metrics';
 import {feedWindow,mergeFeed} from '../lib/feed-window';
@@ -10,8 +10,9 @@ import {V3LaunchFeed} from './V3LaunchFeed';
 
 type Row=LaunchFeedRow & {imageRoot:Hex;progressText:string|null;metricNote:string;block:bigint};
 export function amountETH(value:bigint|null){if(value===null)return 'Unavailable';if(value===0n)return '0 ETH';if(value<1000000000000n)return '<0.000001 ETH';const [whole,fraction='']=formatEther(value).split('.'),decimals=fraction.slice(0,6).replace(/0+$/,'');return whole.replace(/\B(?=(\d{3})+(?!\d))/g,',')+(decimals?'.'+decimals:'')+' ETH';}
-export function LaunchFeed(props:{creator?:Address}){return DEPLOYMENT.kind==='v3'?<V3LaunchFeed {...props}/>:<LegacyLaunchFeed {...props}/>;}
-function LegacyLaunchFeed({creator}:{creator?:Address}){
+export function LaunchFeed(props:{creator?:Address}){const [release,setRelease]=useState('current');return DEPLOYMENT.kind==='v3'?<V3LaunchFeed {...props}/>:<><label className="release-choice">Launch release<select value={release} onChange={e=>setRelease(e.target.value)}><option value="current">Current · optional buyback & burn</option><option value="previous">Previous launches</option></select></label><LegacyLaunchFeed key={release} {...props} deployment={release==='current'?DEPLOYMENT:CURVE_DEPLOYMENT}/></>;}
+function LegacyLaunchFeed({creator,deployment}:{creator?:Address;deployment:Deployment}){
+ const DEPLOYMENT=deployment;
  const [rows,setRows]=useState<Row[]>([]),[cursor,setCursor]=useState<bigint|null>(null),[total,setTotal]=useState(0n),[busy,setBusy]=useState(false),[error,setError]=useState(''),[live,setLive]=useState(true),[updated,setUpdated]=useState(0),[filters,setFilters]=useState<LaunchFeedOptions>({...DEFAULT_LAUNCH_FEED_OPTIONS}),revision=useRef(0),loading=useRef(false);
  const state=useRef({cursor:null as bigint|null,total:0n,updated:0}),cache=useRef(new Map<string,{name:string;symbol:string;fee:number;image:Hex;audio:Hex;website:Hex}>());
  const visible=useMemo(()=>filterLaunchFeed(rows,filters),[rows,filters]);

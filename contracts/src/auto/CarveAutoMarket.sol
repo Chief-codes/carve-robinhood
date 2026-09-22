@@ -1,0 +1,312 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.37;
+
+import {CarveToken} from "../CarveToken.sol";
+import {CarveBuybackPolicy} from "../CarveBuybackPolicy.sol";
+import {CarveEscrow} from "../CarveEscrow.sol";
+import {CarveFeePolicy} from "../CarveFeePolicy.sol";
+import {CarveCurveValidation} from "../CarveCurveValidation.sol";
+import {ICarveMigrationAdapterV2} from "../interfaces/ICarveMigrationAdapterV2.sol";
+
+/// @notice Candidate native-ETH curve: direct trader payouts and retryable migration.
+/// @dev Separate from the deployed V2/V3 contracts. Normal fees only; no anti-sniping tax.
+contract CarveAutoMarket is CarveEscrow {
+    enum Phase { Curve, Migrating, Graduated }
+
+    struct Config {
+        uint256 supply;
+        uint256 virtualETH;
+        uint256 capETH;
+        uint16 creatorFeeLimitBps;
+        address platformRecipient;
+        address migrationAdapter;
+        address locker;
+        bool autoBuyback;
+    }
+
+    uint16 public constant platformFeeBps = 100;
+    CarveToken public immutable token;
+    address public immutable creator;
+    address public immutable factory;
+    address public immutable platformRecipient;
+    address public immutable migrationAdapter;
+    address public immutable locker;
+    uint256 public immutable virtualETH;
+    uint256 public immutable capETH;
+    uint16 public immutable creatorFeeBps;
+    uint16 public immutable creatorFeeLimitBps;
+    bool public immutable autoBuyback;
+    address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+    uint256 public pendingBuybackETH;
+    uint256 public totalBuybackETH;
+    uint256 public totalTokensBurned;
+    uint256 public constant MIN_BUYBACK = 0.00001 ether;
+    uint256 public constant MAX_BUYBACK = 0.002 ether;
+    event AutoBuyback(uint256 ethSpent, uint256 tokensLocked);
+    event BuybackDeferred();
+    error BuybackGasRequired();
+    uint256 public reserveETH;
+    uint256 public inventory;
+    /// @notice Lifetime executed native reserve-leg volume: net buys plus pre-fee sale output.
+    uint256 public curveVolumeETH;
+    Phase public phase;
+    ICarveMigrationAdapterV2.MigrationReceipt private completedMigration;
+
+    error OnlySelf();
+    error InvalidConfig();
+    error WrongPhase();
+    error DeadlineExpired();
+    error ZeroTrade();
+    error Slippage();
+    error InvalidAmount();
+    error CapReached();
+    error TokenTransferFailed();
+    error GraduationNotReady();
+    error InvalidMigrationReceipt();
+    error MigrationAccountingMismatch();
+
+    event MigrationDeferred(bytes32 reasonHash);
+    event DirectPayout(address indexed recipient, uint256 amount, bool credited);
+    event Bought(address indexed buyer, uint256 acceptedGross, uint256 tokensOut,
+        uint256 platformFee, uint256 creatorFee, uint256 refund);
+    event Sold(address indexed seller, uint256 tokensIn, uint256 ethOut,
+        uint256 platformFee, uint256 creatorFee);
+    event ReserveCapReached(uint256 reserveETH);
+    event Graduated(bytes32 indexed poolId, uint128 liquidity, uint256 ethSpent, uint256 tokensSpent,
+        uint256 lockedETH, uint256 lockedTokens);
+
+    constructor(address creator_, address registry_, string memory name_, string memory symbol_,
+        bytes32 image_, bytes32 audio_, bytes32 website_, uint16 creatorFeeBps_, Config memory config,
+        uint256 minTokensOut, uint256 deadline) payable
+    {
+        CarveCurveValidation.validate(config.supply, config.virtualETH, config.capETH);
+        CarveFeePolicy.validate(creatorFeeBps_, config.creatorFeeLimitBps);
+        if (creator_ == address(0) || registry_.code.length == 0 || config.platformRecipient == address(0)
+            || config.migrationAdapter.code.length == 0 || config.locker != config.migrationAdapter) revert InvalidConfig();
+        factory = msg.sender;
+        creator = creator_;
+        autoBuyback = config.autoBuyback;
+        platformRecipient = config.platformRecipient;
+        migrationAdapter = config.migrationAdapter;
+        locker = config.locker;
+        virtualETH = config.virtualETH;
+        capETH = config.capETH;
+        creatorFeeBps = creatorFeeBps_;
+        creatorFeeLimitBps = config.creatorFeeLimitBps;
+        inventory = config.supply;
+        token = new CarveToken(name_, symbol_, config.supply, creator_, registry_, image_, audio_, website_, address(this));
+        if (block.timestamp > deadline) revert DeadlineExpired();
+        if (msg.value != 0) _buy(creator_, msg.value, minTokensOut);
+        else if (minTokensOut != 0) revert Slippage();
+    }
+
+    function capReached() external view returns (bool) { return phase == Phase.Curve && reserveETH == capETH; }
+    function canGraduate() external view returns (bool) { return phase == Phase.Curve && reserveETH == capETH; }
+    function graduationEnabled() external pure returns (bool) { return true; }
+
+    function graduationReceipt() external view returns (ICarveMigrationAdapterV2.MigrationReceipt memory) {
+        return completedMigration;
+    }
+
+    /// @notice Anyone can graduate at the accounted reserve cap; beneficiaries and destination are fixed.
+    /// @dev A failed external call or verification reverts initialization, transfers and phase together.
+    ///      Old curve credits remain withdrawable. Pre-existing unsolicited ETH/token donations stay here.
+    function graduate(uint128 minLiquidity, uint256 deadline) external nonReentrant
+        returns (ICarveMigrationAdapterV2.MigrationReceipt memory receipt)
+    {
+        return _graduate(minLiquidity, deadline);
+    }
+
+    function _graduate(uint128 minLiquidity, uint256 deadline) private
+        returns (ICarveMigrationAdapterV2.MigrationReceipt memory receipt)
+    {
+        _requireCurve();
+        if (block.timestamp > deadline) revert DeadlineExpired();
+        if (reserveETH != capETH) revert GraduationNotReady();
+        uint256 reserveBefore = reserveETH;
+        uint256 inventoryBefore = inventory;
+        uint256 creditsBefore = totalPendingETH;
+        uint256 ethBefore = address(this).balance;
+        uint256 tokensBefore = token.balanceOf(address(this));
+        if (ethBefore < reserveBefore + creditsBefore + pendingBuybackETH || tokensBefore < inventoryBefore) revert MigrationAccountingMismatch();
+
+        phase = Phase.Migrating;
+        if (!token.approve(migrationAdapter, inventoryBefore)) revert TokenTransferFailed();
+        ICarveMigrationAdapterV2 engine = ICarveMigrationAdapterV2(migrationAdapter);
+        receipt = engine.migrate{value: reserveBefore}(address(token), inventoryBefore, minLiquidity, deadline);
+        if (!token.approve(migrationAdapter, 0)) revert TokenTransferFailed();
+
+        if (receipt.poolId == 0 || receipt.liquidity == 0 || receipt.liquidity < minLiquidity
+            || receipt.ethSpent > reserveBefore || receipt.lockedETH != reserveBefore - receipt.ethSpent
+            || receipt.tokensSpent > inventoryBefore || receipt.lockedTokens != inventoryBefore - receipt.tokensSpent)
+            revert InvalidMigrationReceipt();
+        if (keccak256(abi.encode(receipt)) != keccak256(abi.encode(engine.getReceipt(address(this))))
+            || !engine.verifyPosition(address(this))) revert InvalidMigrationReceipt();
+        if (address(this).balance != ethBefore - reserveBefore
+            || token.balanceOf(address(this)) != tokensBefore - inventoryBefore
+            || totalPendingETH != creditsBefore || address(this).balance < creditsBefore + pendingBuybackETH)
+            revert MigrationAccountingMismatch();
+
+        reserveETH = 0;
+        inventory = 0;
+        completedMigration = receipt;
+        phase = Phase.Graduated;
+        emit Graduated(receipt.poolId, receipt.liquidity, receipt.ethSpent, receipt.tokensSpent,
+            receipt.lockedETH, receipt.lockedTokens);
+    }
+
+    function quoteBuy(uint256 grossETH) public view returns (uint256 tokensOut, uint256 acceptedGross,
+        uint256 platformFee, uint256 creatorFee, uint256 refund)
+    {
+        _requireCurve();
+        CarveFeePolicy.CappedBuy memory quote = CarveFeePolicy.cappedBuy(
+            grossETH, capETH - reserveETH, creatorFeeBps, creatorFeeLimitBps
+        );
+        tokensOut = inventory * quote.net / (virtualETH + reserveETH + quote.net);
+        return (tokensOut, quote.acceptedGross, quote.platformFee, quote.creatorFee, quote.refund);
+    }
+
+    function buy(uint256 minTokensOut, uint256 deadline) external payable nonReentrant returns (uint256 tokensOut) {
+        if (block.timestamp > deadline) revert DeadlineExpired();
+        tokensOut = _buy(msg.sender, msg.value, minTokensOut);
+        _tryBuyback();
+        if (reserveETH == capETH) _tryGraduate(deadline);
+    }
+
+    function _buy(address buyer, uint256 grossETH, uint256 minTokensOut) private returns (uint256 tokensOut) {
+        _requireCurve();
+        if (reserveETH == capETH) revert CapReached();
+        uint256 acceptedGross;
+        uint256 platformFee;
+        uint256 creatorFee;
+        uint256 refund;
+        (tokensOut, acceptedGross, platformFee, creatorFee, refund) = quoteBuy(grossETH);
+        if (tokensOut == 0) revert ZeroTrade();
+        if (tokensOut < minTokensOut) revert Slippage();
+        uint256 nativeLeg = acceptedGross - platformFee - creatorFee;
+        reserveETH += nativeLeg;
+        curveVolumeETH += nativeLeg;
+        inventory -= tokensOut;
+        _credit(platformRecipient, platformFee);
+        _creditCreator(creatorFee);
+
+        if (!token.transfer(buyer, tokensOut)) revert TokenTransferFailed();
+        _payOrCredit(buyer, refund);
+        emit Bought(buyer, acceptedGross, tokensOut, platformFee, creatorFee, refund);
+        if (reserveETH == capETH) emit ReserveCapReached(reserveETH);
+    }
+
+    function quoteSell(uint256 tokensIn) public view returns (uint256 ethOut, uint256 platformFee, uint256 creatorFee) {
+        _requireCurve();
+        if (reserveETH == capETH) revert CapReached();
+        if (tokensIn > token.totalSupply() - inventory) revert InvalidAmount();
+        if (tokensIn == 0) return (0, 0, 0);
+        uint256 gross = (virtualETH + reserveETH) * tokensIn / (inventory + tokensIn);
+        if (gross > reserveETH) revert InvalidAmount();
+        CarveFeePolicy.Amounts memory amounts = CarveFeePolicy.fromGross(gross, creatorFeeBps, creatorFeeLimitBps);
+        return (amounts.net, amounts.platformFee, amounts.creatorFee);
+    }
+
+    /// @notice Sale proceeds are paid as native ETH; rejecting receivers retain withdrawable credit.
+    function sell(uint256 tokensIn, uint256 minETHOut, uint256 deadline) external nonReentrant returns (uint256 ethOut) {
+        if (block.timestamp > deadline) revert DeadlineExpired();
+        uint256 platformFee;
+        uint256 creatorFee;
+        (ethOut, platformFee, creatorFee) = quoteSell(tokensIn);
+        if (ethOut == 0) revert ZeroTrade();
+        if (ethOut < minETHOut) revert Slippage();
+        reserveETH -= ethOut + platformFee + creatorFee;
+        curveVolumeETH += ethOut + platformFee + creatorFee;
+        inventory += tokensIn;
+        _credit(platformRecipient, platformFee);
+        _creditCreator(creatorFee);
+
+        if (!token.transferFrom(msg.sender, address(this), tokensIn)) revert TokenTransferFailed();
+        _payOrCredit(msg.sender, ethOut);
+        emit Sold(msg.sender, tokensIn, ethOut, platformFee, creatorFee);
+        _tryBuyback();
+        if (reserveETH == capETH) _tryGraduate(deadline);
+    }
+
+    /// @notice A failed seed does not undo the trade. Anyone may retry; funds never leave
+    /// the curve on a failed attempt. Both directions pause at the cap until retry succeeds,
+    /// so a sell cannot move the terminal reserves while the pool is waiting to be seeded.
+    function tryGraduate(uint256 deadline) external nonReentrant returns (bool) {
+        return _tryGraduate(deadline);
+    }
+
+    function _tryGraduate(uint256 deadline) private returns (bool) {
+        if (phase != Phase.Curve || reserveETH != capETH || block.timestamp > deadline) return false;
+        // Reserve gas for the catch path and the outer launch/trade receipt.
+        uint256 available = gasleft();
+        if (available < 250_000) { emit MigrationDeferred(keccak256("INSUFFICIENT_GAS")); return false; }
+        try this.completeGraduation{gas: available - 150_000}(deadline) {
+            return true;
+        } catch (bytes memory reason) {
+            emit MigrationDeferred(keccak256(reason));
+            return false;
+        }
+    }
+
+    /// @dev Self-call gives migration its own atomic rollback boundary. The outer caller
+    /// already holds the reentrancy guard; no external account may enter this function.
+    function completeGraduation(uint256 deadline) external {
+        if (msg.sender != address(this)) revert OnlySelf();
+        _graduate(0, deadline);
+    }
+
+    function _payOrCredit(address recipient, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok,) = payable(recipient).call{value: amount, gas: 30_000}("");
+        if (!ok) _credit(recipient, amount);
+        emit DirectPayout(recipient, amount, !ok);
+    }
+
+    function _creditCreator(uint256 amount) private {
+        if (!autoBuyback) { _credit(creator, amount); return; }
+        (uint256 revenue, uint256 budget) = CarveBuybackPolicy.split(amount);
+        _credit(creator, revenue);
+        pendingBuybackETH += budget;
+    }
+
+    function _tryBuyback() private {
+        if (!autoBuyback || pendingBuybackETH < MIN_BUYBACK || phase != Phase.Curve
+            || reserveETH == capETH) return;
+        // Without this floor eth_estimateGas can converge on a cheaper path
+        // that always skips buybacks. Reverting here makes wallets reserve gas.
+        if (gasleft() < 450_000) revert BuybackGasRequired();
+        try this.processBuyback{gas: 300_000}() {} catch { emit BuybackDeferred(); }
+    }
+
+    /// @dev Self-call rollback boundary: failures cannot unwind the trader's swap.
+    function processBuyback() external {
+        if (msg.sender != address(this)) revert OnlySelf();
+        uint256 amount = pendingBuybackETH;
+        if (amount > MAX_BUYBACK) amount = MAX_BUYBACK;
+        uint256 impactCap = (virtualETH + reserveETH) / 1000;
+        if (amount > impactCap) amount = impactCap;
+        (uint256 expected, uint256 accepted,,,) = quoteBuy(amount);
+        if (accepted < MIN_BUYBACK || expected == 0) return;
+        pendingBuybackETH -= accepted;
+        uint256 bought = _buy(BURN_ADDRESS, accepted, expected);
+        totalBuybackETH += accepted;
+        totalTokensBurned += bought;
+        emit AutoBuyback(accepted, bought);
+    }
+
+    /// @notice Only the authenticated engine can move residual curve buyback funds
+    /// into that same token's post-graduation budget; never creator/platform revenue.
+    function releaseBuybackToEngine() external returns (uint256 amount) {
+        if (msg.sender != migrationAdapter || phase != Phase.Graduated) revert OnlySelf();
+        amount = pendingBuybackETH;
+        pendingBuybackETH = 0;
+        if (amount != 0) {
+            (bool ok,) = payable(migrationAdapter).call{value:amount}("");
+            if (!ok) revert ETHTransferFailed();
+        }
+    }
+
+    function _requireCurve() private view {
+        if (phase != Phase.Curve) revert WrongPhase();
+    }
+}

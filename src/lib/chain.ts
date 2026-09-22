@@ -1,7 +1,7 @@
 import {createPublicClient,defineChain,http,parseAbi,type Address,type Hex,isAddress,zeroHash} from 'viem';
 export const NETWORK=defineChain({id:4663,name:'Robinhood Chain',nativeCurrency:{name:'Ether',symbol:'ETH',decimals:18},rpcUrls:{default:{http:['https://rpc.mainnet.chain.robinhood.com']}},blockExplorers:{default:{name:'Blockscout',url:'https://robinhoodchain.blockscout.com'}}});
 export const client=createPublicClient({chain:NETWORK,transport:http(NETWORK.rpcUrls.default.http[0],{timeout:20000,retryCount:1,batch:{batchSize:12,wait:10}}),batch:{multicall:false}});
-export type Deployment={chainId:number;kind?:'curve-v4'|'v3';curveVersion?:4;status:'not-deployed'|'local'|'verified';registry:Address|null;factory:Address|null;engine:Address|null;router:Address|null;deployedBlock:string|null;launchEnabled:boolean;codeHashes?:Partial<Record<'registry'|'factory'|'engine'|'router',Hex>>;deploymentTx?:Hex;};
+export type Deployment={chainId:number;kind?:'curve-v4'|'v3';curveVersion?:4|5;status:'not-deployed'|'local'|'verified';registry:Address|null;factory:Address|null;engine:Address|null;router:Address|null;deployedBlock:string|null;launchEnabled:boolean;codeHashes?:Partial<Record<'registry'|'factory'|'engine'|'router',Hex>>;deploymentTx?:Hex;};
 // Only replace using verified receipts, bytecode and immutable bindings. No query-string override.
 // Replacement receipt/runtime/25 bindings verified at block 63,790,565.
 // Retained registry; new factory supports every non-empty media combination.
@@ -40,7 +40,23 @@ export const CURVE_DEPLOYMENT:Deployment={
   },
   "deploymentTx": "0x8c6a5d317d3426ea17d70a7c2bb3001f3d08e87e94be765b4c1d55b7d73baa03"
 };
-export const DEPLOYMENT:Deployment=CURVE_DEPLOYMENT.status==='verified'?CURVE_DEPLOYMENT:V3_DEPLOYMENT.status==='verified'?V3_DEPLOYMENT:LEGACY_DEPLOYMENT;
+// Verified receipt, full runtime hashes and 33 bindings; old releases remain supported.
+export const AUTO_DEPLOYMENT:Deployment={
+ chainId:4663,kind:'curve-v4',curveVersion:5,status:'verified',registry:CURVE_DEPLOYMENT.registry,
+ factory:'0xAFbF0a6a548BAD4320FC0fBe777055572B2F340a',
+ engine:'0x832Fb03279d7b10B0f2F711Fc4251eBeC3ce2044',
+ router:'0x097C5497a07fB9D50d818f5356eD847FD5dE23Bf',
+ deployedBlock:'69716039',launchEnabled:true,
+ deploymentTx:'0x58b02a79e39e5453ecc2a26547e5f456ae381f37fecf0c44cc7c177e02cdb1fe',
+ codeHashes:{
+  registry:'0x9b78648a676fced6841980d9dd3fe04eb1c863d2006ad06203ec0a04770eba90',
+  factory:'0xaeb43c9891c878b140310695e5d4ba961d7bfa5ac46f142462c9c64d6b882f2e',
+  engine:'0xf57858d67af72f109e6f7d6d3dc2cc17773f046d384708e175e77f20908c8370',
+  router:'0xe8d8cdefefb0555dd33fa3eb7b4105a437d4f1f7e6d7d6a368f8b125909b6313'
+ }
+};
+export const DEPLOYMENT:Deployment=AUTO_DEPLOYMENT;
+export const CURVE_RELEASES=[AUTO_DEPLOYMENT,CURVE_DEPLOYMENT] as const;
 export const REGISTRY_ABI=parseAbi([
  'function writeChunk(bytes data) returns (address pointer,bytes32 chunkHash)',
  'function pointerForHash(bytes32) view returns (address)',

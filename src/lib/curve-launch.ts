@@ -1,6 +1,6 @@
 import {bytesToHex,keccak256,parseEther,parseEventLogs,stringToHex,zeroHash,type Hex} from 'viem';
 import {TOKEN_ABI,MARKET_ABI} from './chain';
-import {CURVE_FACTORY_ABI,CURVE_ENGINE_ABI} from './curve-contracts';
+import {CURVE_FACTORY_ABI,CURVE_ENGINE_ABI,AUTO_FACTORY_ABI,AUTO_MARKET_ABI} from './curve-contracts';
 import {v3LaunchPlan} from './v3-launch-plan';
 import {validateDraft,type Draft} from './assets';
 import {reconstructContent,validateMediaBytes} from './inscriptions';
@@ -21,16 +21,17 @@ export function curveInitialMinimum(initialBuy:bigint,creatorBps:number){
 export async function launchCurveDraft(s:Session,draft:Draft){
  const issues=validateDraft(draft);if(issues.length)throw new Error(issues.join(' '));
  for(const asset of Object.values(draft.assets))if(asset){validateMediaBytes(asset);if(keccak256(asset.bytes)!==asset.keccak)throw new Error('Local file integrity failed.');}
- const d=await verifyDeployment(s);if(d.curveVersion!==4)throw new Error('The new curve release has not been verified.');
+ const d=await verifyDeployment(s);if(d.curveVersion!==4&&d.curveVersion!==5)throw new Error('The new curve release has not been verified.');
+ if(draft.autoBuyback&&d.curveVersion!==5)throw new Error('This older release cannot enable buybacks.');
  const initialBuy=parseEther(draft.initialBuy||'0'),bps=creatorBasisPoints(draft),minOut=curveInitialMinimum(initialBuy,bps),plan=v3LaunchPlan(draft);
  const roots:Hex[]=[zeroHash,zeroHash,zeroHash];
  if(!plan.inline)for(let i=0;i<3;i++){const asset=draft.assets[kinds[i]];if(asset)roots[i]=await inscribeAsset(s,asset);}
- const identity=keccak256(stringToHex(JSON.stringify([draft.name.trim(),draft.symbol.trim(),bps,initialBuy.toString(),...kinds.map(k=>draft.assets[k]?[draft.assets[k]!.mime,draft.assets[k]!.keccak]:null)])));
+ const identity=keccak256(stringToHex(JSON.stringify([draft.name.trim(),draft.symbol.trim(),bps,draft.autoBuyback===true,initialBuy.toString(),...kinds.map(k=>draft.assets[k]?[draft.assets[k]!.mime,draft.assets[k]!.keccak]:null)])));
  const key=(`${d.chainId}:${d.factory}:${s.account}:curve-launch:${identity}`+launchAttemptSuffix(s.launchAttemptId)).toLowerCase();
  const deadline=BigInt(Math.floor(Date.now()/1000)+1200);
  const assets=kinds.map(k=>draft.assets[k]?{root:zeroHash,mimeType:draft.assets[k]!.mime,encoding:'identity',data:bytesToHex(draft.assets[k]!.bytes)}:{root:zeroHash,mimeType:'',encoding:'',data:'0x'});
- const call={address:d.factory,abi:CURVE_FACTORY_ABI,functionName:plan.inline?'launchInline':'launch',
-  args:plan.inline?[draft.name.trim(),draft.symbol.trim(),assets,bps,minOut,deadline]:[draft.name.trim(),draft.symbol.trim(),...roots,bps,minOut,deadline],value:parseEther('0.0005')+initialBuy};
+ const call={address:d.factory,abi:d.curveVersion===5?AUTO_FACTORY_ABI:CURVE_FACTORY_ABI,functionName:plan.inline?'launchInline':'launch',
+  args:plan.inline?[draft.name.trim(),draft.symbol.trim(),assets,bps,...(d.curveVersion===5?[draft.autoBuyback===true]:[]),minOut,deadline]:[draft.name.trim(),draft.symbol.trim(),...roots,bps,...(d.curveVersion===5?[draft.autoBuyback===true]:[]),minOut,deadline],value:parseEther('0.0005')+initialBuy};
  const hitsCap=initialBuy*BigInt(9900-bps)/10000n>=parseEther('4.2');
  const receipt=await sendChecked(s,hitsCap?await withMigrationHeadroom(s,call):call,key);
  const event=parseEventLogs({abi:CURVE_FACTORY_ABI,eventName:'Launched',logs:receipt.logs.filter(l=>same(l.address,d.factory))}).find(e=>same(e.args.creator,s.account));
@@ -47,6 +48,7 @@ export async function launchCurveDraft(s:Session,draft:Draft){
   s.read.readContract({address:market,abi:MARKET_ABI,functionName:'phase',blockNumber}),
  ]);
  if(!same(registered,market)||!same(marketToken,token)||!same(creator,s.account)||!same(registry,d.registry)||supply!==10n**27n||name!==draft.name.trim()||symbol!==draft.symbol.trim()||creatorFeeBps!==bps)throw new Error('Mined launch bindings differ from the reviewed request. Do not repeat it.');
+ if(d.curveVersion===5&&(await s.read.readContract({address:market,abi:AUTO_MARKET_ABI,functionName:'autoBuyback',blockNumber}))!==(draft.autoBuyback===true))throw new Error('Mined buyback selection differs from the reviewed request. Do not repeat it.');
  for(let i=0;i<3;i++){
   const root=await s.read.readContract({address:token,abi:TOKEN_ABI,functionName:(['imageRoot','audioRoot','websiteRoot'] as const)[i],blockNumber});
   const asset=draft.assets[kinds[i]];

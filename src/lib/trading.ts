@@ -45,7 +45,7 @@ export async function executeTrade(s:Session,quote:TradeQuote,slippageBps:number
  const deadline=BigInt(Math.floor(Date.now()/1000)+300);
  if(quote.phase===0){
   const call={address:quote.market,abi:MARKET_ABI,functionName:quote.buy?'buy':'sell',args:quote.buy?[minOut,deadline]:[quote.amountIn,minOut,deadline],value:quote.buy?quote.amountIn:0n};
-  if(quote.buy&&d.curveVersion===4){
+  if(quote.buy&&(d.curveVersion===4||d.curveVersion===5)){
    const [reserve,currentQuote]=await Promise.all([s.read.readContract({address:quote.market,abi:MARKET_ABI,functionName:'reserveETH'}),s.read.readContract({address:quote.market,abi:MARKET_ABI,functionName:'quoteBuy',args:[quote.amountIn]})]);
    if(reserve+currentQuote[1]-currentQuote[2]-currentQuote[3]>=parseEther('4.2'))return sendChecked(s,await withMigrationHeadroom(s,call));
   }
