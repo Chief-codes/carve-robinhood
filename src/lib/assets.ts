@@ -1,4 +1,5 @@
 import { bytesToHex, keccak256 } from 'viem';
+import {compressGif} from './gif';
 export const CHUNK_BYTES = 20 * 1024;
 export const MAX_FILE_BYTES = 1024 * 1024;
 export type AssetKind = 'image' | 'audio' | 'website';
@@ -28,7 +29,7 @@ export function planAssets(assets:Draft['assets']) {
 }
 export async function optimizeImage(file:File,dimension:number,quality=0.8) {
   if(file.size>12*1024*1024) throw new Error('Choose an image smaller than 12 MB before optimization.');
-  if(file.type==='image/gif') return makeAsset('image',file.name,file.type,new Uint8Array(await file.arrayBuffer()));
+  if(file.type==='image/gif'||/\.gif$/i.test(file.name)) return makeAsset('image',file.name,'image/gif',await compressGif(new Uint8Array(await file.arrayBuffer()),dimension),file.size);
   const bitmap=await createImageBitmap(file);
   try {
     const ratio=Math.min(1,dimension/Math.max(bitmap.width,bitmap.height));
