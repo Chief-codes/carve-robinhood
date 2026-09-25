@@ -23,4 +23,8 @@ The deployed contracts and exact validation record are listed in `docs/STATUS.md
 
 ## Hosting
 
-The live site is deployed on Netlify. Public repository commits use GitHub's `users.noreply.github.com` address, so the owner’s personal email is not included in the public repository history.
+The live site is [carvelaunch.com](https://carvelaunch.com/), hosted on Netlify. Official X: [@CarveOnRh](https://x.com/CarveOnRh).
+
+The original Netlify address remains available. Drafts and wallet permissions belong to each browser origin: export existing local drafts from the old address before continuing on the new domain. Never import wallet keys; reconnect through your selected extension.
+
+Public repository commits use GitHub's `users.noreply.github.com` address; new commits do not publish a personal email.

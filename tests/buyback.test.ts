@@ -36,6 +36,7 @@ test('buyback figures combine curve and pool at one block and reject missing dat
 });
 test('launch-preview sample is a real animated GIF, not draft media',()=>{
  const sampleGifBytes=new Uint8Array(readFileSync('src/assets/buddy/hello.gif'));
- const info=inspectGif(sampleGifBytes);assert.ok(info.frames>=16);assert.ok(info.duration>=350&&info.duration<=450);
- assert.ok(sampleGifBytes.length<1024*1024);assert.deepEqual(newDraft().assets,{});
+ const info=inspectGif(sampleGifBytes),original=inspectGif(new Uint8Array(readFileSync('artwork/Carve-Jump-Blink.gif')));
+ assert.equal(info.frames,original.frames);assert.equal(info.duration,original.duration);
+ assert.ok(sampleGifBytes.length<1.5*1024*1024);assert.deepEqual(newDraft().assets,{});
 });

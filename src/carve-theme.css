@@ -100,4 +100,9 @@
 :root[data-carve-theme=light] :is(dt,.inscription-summary dd,.inscription-summary h3,.file-meta>strong){color:#345a40}
 :root[data-carve-theme=light] .brand-art .sample-gif{width:100%;height:100%;padding:0;margin:0;border-radius:0;object-fit:contain}
 :root[data-carve-theme=light] .brand-art:has(.sample-gif) .art-caption{color:#345a40}
+:root[data-carve-theme=light] .readiness a{color:#28623d}
+:root[data-carve-theme=light] .readiness a:hover{color:#123c24;text-decoration:underline}
+:root[data-carve-theme=light] .verification-docs>details{border-top:1px solid #ccddc9;padding:10px 0;margin:0}
+:root[data-carve-theme=light] .verification-docs>details>summary{font-weight:600;line-height:1.5;padding:12px 0;cursor:pointer;color:#254a32}
+:root[data-carve-theme=light] .verification-docs summary:focus-visible{outline:2px solid #287b44;outline-offset:4px}
 @media(max-width:700px){.page-heading.studio-heading h1{font-size:clamp(1.9rem,6.6vw,3rem)}.studio-heading{gap:14px}.studio-heading .studio-cube{width:100px;height:125px;margin:0}}

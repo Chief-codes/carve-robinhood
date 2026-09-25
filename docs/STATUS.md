@@ -1,5 +1,15 @@
 # Carve — current status, 25 September 2026
 
+## Custom domain, supplied GIF and simple Docs — published
+
+- Primary domain configured: https://carvelaunch.com/; www redirects to the apex. Netlify managed HTTPS certificate issued; public DNS resolvers return the new site. Some local resolvers still cache the earlier empty DNS answer.
+- Official X: https://x.com/CarveOnRh. Canonical/social metadata updated; shared footer RH/block counter and its standalone polling removed.
+- User's jump/blink replaces the greeting example with a transparent background, original 113 frames/3.76-second timing and reduced-motion still. Example remains separate from launch media. No existing Buddy gaze/scroll logic changed.
+- Docs now use ten plain-English expandable guides for every current utility, with advanced verification/build details kept optional. Official X is linked in the footer and Docs. Corrected the stale source-publication sentence in How it works.
+- 75 tests and production builds passed in both the source and public-repository checkouts. All 113 GIF frames have transparent corners and preserved timing. Create preview and Docs expansion/spacing checked in-browser; no page errors. Nine core utility/animation/backend files compared byte-for-byte with the prior public release and remain unchanged.
+- Production deployment `6ab67b909f74e1a1c0f1c49b` is live at https://carvelaunch.com/. Published HTML, entry code, Docs bundle and GIF exactly match the tested build. HTTPS certificate validates; www redirects; the live Musebook endpoint returns 20 posts. Original Netlify address remains HTTP 200 for existing drafts and DNS-cache fallback.
+- Details, DNS-cache caveat and origin-specific draft guidance: `DOMAIN-AND-BUDDY-2026-09-25.md`.
+
 ## Original Buddy reference restored — published
 
 - Restored the friend's actual 25-pose seated gaze renderer and original sine-blink timing, replacing the experimental native-eye/skin renderer described below. Existing original poses and lossless quality remain.
