@@ -43,6 +43,17 @@
 :root[data-carve-theme=light] .home-explainer .panel{border-radius:20px}
 :root[data-carve-theme=light] .error{color:#a12e31}:root[data-carve-theme=light] .warning{background:#fff3d6;border-color:#d6b979;color:#74541f}
 :root[data-carve-theme=light] .dialog-overlay{background:#17372355;backdrop-filter:blur(7px)}
+/* Dialogs need solid surfaces, especially a wallet picker above launch review. */
+:root[data-carve-theme=light] .dialog-content{background:#fafff7}
+.wallet-dialog-overlay{z-index:102}.wallet-dialog{z-index:103}
+:root[data-carve-theme=light] .wallet-list button{background:#e9f4e5;border-color:#91b49a;color:#20442c;font-weight:600}
+:root[data-carve-theme=light] .wallet-list button:hover:not(:disabled){background:#dbeed7;border-color:#548b63;color:#183724}
+:root[data-carve-theme=light] .wallet-list button:disabled{background:#eef2e9;color:#53675a;border-color:#b7c9b9;opacity:1}
+:root[data-carve-theme=light] .wallet-dialog :is(.wallet-list button,.wallet-install,.dialog-close):focus-visible{outline:2px solid #267e48;outline-offset:3px}
+:root[data-carve-theme=light] .wallet-dialog .dialog-close{color:#244b32}
+:root[data-carve-theme=light] .wallet-dialog .dialog-close:hover{background:#e3f2db;color:#183724}
+:root[data-carve-theme=light] .wallet-connected{background:#e9f4e5;border-color:#91b49a;color:#20442c}
+.wallet-connected code{overflow-wrap:anywhere}
 .carve-launch-invitation{position:relative;min-height:820px;height:100svh;margin:0 0 64px;color:#193c28;scroll-margin-top:20px}
 .invitation-heading{text-align:center;padding-top:50px}.invitation-heading .eyebrow{font-size:.65rem;letter-spacing:.16em;color:#417850}
 .invitation-heading h2{font-size:clamp(3rem,6vw,6rem);line-height:.96;letter-spacing:-.07em;margin:24px 0}

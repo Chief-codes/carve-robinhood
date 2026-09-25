@@ -1,5 +1,11 @@
 # Carve — current status, 25 September 2026
 
+## Wallet dialog readability — published
+
+- Detected-extension buttons now use high-contrast mint backgrounds and dark green labels, including hover/disabled states and keyboard focus. Dialog surfaces are opaque; the wallet picker and its overlay sit above launch review so underlying text cannot bleed through. Connected-wallet panels use the same palette.
+- 77 tests and production build passed. Actual Chrome extensions were checked locally and on the published site; nested review/wallet dialogs and keyboard focus were checked. No connection behavior, contracts, fees, draft data or transactions changed.
+- Production deployment: `6ab68cdedf24b94e3f4b85ec`, https://carvelaunch.com/. The published `/assets/index-DT2Fk7hD.css` and computed button colors were verified. Existing active launch tabs were not refreshed or interrupted; refresh when no wallet approval is pending to receive the update.
+
 ## Custom domain, supplied GIF and simple Docs — published
 
 - Primary domain configured: https://carvelaunch.com/; www redirects to the apex. Netlify managed HTTPS certificate issued; public DNS resolvers return the new site. Some local resolvers still cache the earlier empty DNS answer.
