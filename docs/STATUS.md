@@ -7,7 +7,9 @@
 - Create preview now uses the original Buddy greeting as a 585 KB looping GIF, with reduced-motion still and no effect on uploaded/draft media.
 - Live renderer checks passed: left/right/up/down, neutral on leave/blur/touch, reduced-motion stillness, reverse-scroll gaze shutoff and independent idle blink. Create GIF, caption and controls do not overlap; home-page greeting is hidden while seated and there is no horizontal overflow.
 - Production deployment `6ab663f669daad86fdc8f3b1`: https://carve-robinhood.netlify.app. Preview `6ab6633f1acf1e770c71d5a5` remains behind the existing Netlify team protection; that protection was not weakened.
-- Utilities, contract addresses, fees, wallet behavior, saved data and live Musebook feed unchanged. See `BUDDY-REFERENCE-RESTORE-2026-09-25.md`. Public repository is being synchronized from this tested source, retaining existing contracts and using GitHub's no-reply author email.
+- Public checks: the served entry bundle, greeting GIF and eye atlas match the local build exactly; the live Musebook endpoint returns 20 posts. Create displays the new greeting and browser error log is empty.
+- Public repository synchronized in `90eab6bae36dc17d67c7bf2d599bdde213182093`: https://github.com/Chief-codes/carve-robinhood. Includes the current design, optimized assets and live Musebook integration, retaining the repository's existing contract sources. Build and all 73 tests also passed in the publish checkout. New commits use GitHub's no-reply author/committer email; no personal email, credentials or local user paths were found in the staged update.
+- Utilities, contract addresses, fees, wallet behavior, saved data and live Musebook feed unchanged by the visual restoration. See `BUDDY-REFERENCE-RESTORE-2026-09-25.md`.
 
 ## Buddy face/quality fixes and live Musebook feed
 
