@@ -1,0 +1,18 @@
+import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {ArrowRight,Download,FileImage,Upload,Wallet} from 'lucide-react';
+import {formatEther} from 'viem';
+import {useWallet} from '../lib/wallet';
+import {bytesLabel,download,exportDraft,importDraft,planAssets,type Draft} from '../lib/assets';
+import {useAssetUrl} from './AssetEditor';
+import {client,short} from '../lib/chain';
+import {WalletDialog} from './WalletDialog';
+import {LaunchFeed} from './LaunchFeed';
+
+function Status({children}:{children:ReactNode}){return <span className="status-tag">{children}</span>;}
+function SectionTitle({number,title,description}:{number:string;title:string;description?:string}){return <div className="section-title"><span className="section-number">{number}</span><div><h2>{title}</h2>{description&&<p>{description}</p>}</div></div>;}
+
+export function Library({draft,setDraft}:{draft:Draft;setDraft:(d:Draft)=>void}){
+ const w=useWallet(),[balance,setBalance]=useState<string|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),file=useRef<HTMLInputElement>(null);const url=useAssetUrl(draft.assets.image);
+ useEffect(()=>{let active=true;setBalance(null);setError('');if(w.address&&w.chainId===4663){setBusy(true);client.getBalance({address:w.address}).then(v=>{if(active)setBalance(formatEther(v));}).catch(()=>{if(active)setError('Balance could not be read. Reconnect to retry.');}).finally(()=>{if(active)setBusy(false);});}else setBusy(false);return()=>{active=false;};},[w.address,w.chainId]);
+ return <><div className="page-heading compact"><div><div className="eyebrow">YOUR CREATIVE SPACE</div><h1>My <em>workspace.</em></h1><p>Resume your draft or check the wallet connected to Carve.</p></div></div><div className="workspace-grid"><section className="panel"><SectionTitle number="01" title="Saved on this device"/><div className="draft-card">{url?<img src={url} alt="Draft artwork"/>:<div className="draft-icon"><FileImage size={27}/></div>}<div><h3>{draft.name||'Untitled inscription'}</h3><p>${draft.symbol||'TICKER'} · {bytesLabel(planAssets(draft.assets).bytes)}</p><Status>NOT PUBLISHED</Status></div></div><div className="button-row"><a className="primary" href="#/studio">Continue editing <ArrowRight size={16}/></a><button className="secondary" onClick={()=>download((draft.symbol||'carve')+'-draft.json',exportDraft(draft))}><Download size={16}/>Export</button></div><button className="text-link" onClick={()=>file.current?.click()}><Upload size={15}/>Import a Carve draft</button><input className="visually-hidden" aria-label="Import draft file" ref={file} type="file" accept=".json,application/json" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;try{setDraft(await importDraft(await f.text()));location.hash='/studio';}catch(err){setError((err as Error).message);}e.target.value='';}}/><p className="muted">Drafts stay in this browser. Export a copy before clearing browser data or switching devices.</p></section><section className="panel"><SectionTitle number="02" title="Connected wallet"/>{w.address?<><code className="full-address">{w.address}</code><div className="balance"><span>Robinhood ETH balance</span><strong>{w.chainId!==4663?'Switch network':busy?'Reading…':balance===null?'Unavailable':Number(balance).toLocaleString(undefined,{maximumFractionDigits:6})+' ETH'}</strong></div><WalletDialog/></>:<div className="empty-small"><Wallet size={30}/><h3>Your wallet, your account</h3><p>Connect an extension to read your real balance. No demo holdings are assigned.</p><WalletDialog/></div>}{error&&<p className="error" role="alert">{error}</p>}</section></div>{w.address&&<LaunchFeed creator={w.address}/>}</>;
+}

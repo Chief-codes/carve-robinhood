@@ -5,7 +5,7 @@ import {AUTO_FACTORY_ABI,CURVE_FACTORY_ABI} from '../src/lib/curve-contracts';
 import {DEPLOYMENT,CURVE_DEPLOYMENT} from '../src/lib/chain';
 import {newDraft,exportDraft,importDraft,validateDraft} from '../src/lib/assets';
 import {readBuybackStats} from '../src/lib/buyback';
-import {sampleGifBytes} from '../src/lib/sample-gif';
+import {readFileSync} from 'node:fs';
 import {inspectGif} from '../src/lib/gif';
 test('version 5 ABI encodes the exact opt-in flag; old signature remains distinct',()=>{
  for(const enabled of [false,true]){
@@ -35,6 +35,7 @@ test('buyback figures combine curve and pool at one block and reject missing dat
  await assert.rejects(readBuybackStats(read,DEPLOYMENT.factory!,DEPLOYMENT),/unavailable/);
 });
 test('launch-preview sample is a real animated GIF, not draft media',()=>{
- const info=inspectGif(sampleGifBytes);assert.equal(info.frames,16);assert.equal(info.duration,128);
+ const sampleGifBytes=new Uint8Array(readFileSync('src/assets/buddy/hello.gif'));
+ const info=inspectGif(sampleGifBytes);assert.ok(info.frames>=16);assert.ok(info.duration>=350&&info.duration<=450);
  assert.ok(sampleGifBytes.length<1024*1024);assert.deepEqual(newDraft().assets,{});
 });

@@ -16,9 +16,11 @@
 .buyback-readout{margin:18px 0;display:block!important}
 .buyback-readout .review-details>div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
 .release-choice{display:block;max-width:350px;margin-bottom:18px}
-.sample-gif{image-rendering:auto;object-fit:contain;border-radius:50%;width:72%!important;filter:drop-shadow(0 0 22px #16964755)}
-.brand-art .sample-gif{display:block;margin:auto;padding:12px 0 76px;animation:none}
-.brand-art:has(.sample-gif) .art-caption{bottom:68px;font-size:.7rem;line-height:1.4;max-width:290px;margin:auto;padding:0 10px}
+.sample-gif{image-rendering:auto;object-fit:contain;border-radius:0;filter:drop-shadow(0 8px 10px #16964722)}
+.brand-art:has(.sample-gif){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 12px 62px;box-sizing:border-box}
+.buddy-hello-preview{display:block;flex:1;min-height:0;width:100%;max-width:210px;margin:0}
+.brand-art .sample-gif{display:block;width:100%;height:100%;margin:0;padding:0;animation:none}
+.brand-art:has(.sample-gif) .art-caption{position:static;flex:none;font-size:.65rem;line-height:1.4;max-width:260px;margin:0;padding:0 6px}
 .preview-controls button{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.switch-track>span{transition:none}}
 @media(max-width:520px){.buyback-switch strong{font-size:1.125rem}.buyback-switch{gap:12px}.buyback-switch-state{flex-direction:column;gap:4px;font-size:.75rem}}

@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8"><title>Carve original animation comparison — local only</title>
+<style>body{font:16px system-ui;background:#eaf5e4;color:#173c28;margin:24px}section{display:flex;gap:12px;flex-wrap:wrap}figure{margin:0}canvas{width:260px;height:260px}button{padding:12px;margin:8px}pre{white-space:pre-wrap}#live{display:block;width:360px;height:360px}</style>
+<h1>Original friend atlas — restored gaze and blink</h1>
+<p>Local-only checks. Not included in the published website.</p>
+<pre id="result">Comparing all 25 gaze directions against the original compositor…</pre>
+<section id="scenes"></section>
+<h2>Live renderer</h2>
+<button id="seated">Seated</button><button id="walk">Reverse to walk</button><button id="neutral">Pointer leave</button><button id="blur">Window blur</button><button id="touch">Touch pointer</button>
+<button id="left">Left</button><button id="right">Right</button><button id="up">Up</button><button id="down">Down</button>
+<button id="reduced">Reduced motion</button><button id="normal">Normal motion</button>
+<button id="run-live">Run live behavior checks</button>
+<canvas id="live"></canvas><pre id="live-result"></pre><pre id="behavior"></pre>
+<script type="module">
+import {inspectFrame,createScrollMascot} from '/src/components/CarveScrollMascot.ts';
+import {buddyBlink,drawBuddyBlink,drawGaze,prepareGaze} from '/src/components/buddy-face.ts';
+import {buddyAssets,loadBuddyImage} from '/src/components/buddy-runtime.ts';
+import {inspectFrame as originalFrame,prepareGaze as originalGaze,drawGaze as originalDraw} from './fixtures/friend-mascot.ts';
+const result=document.querySelector('#result'),scene=document.querySelector('#scenes');
+const [sit,atlas]=await Promise.all([loadBuddyImage(buddyAssets.sit),loadBuddyImage(buddyAssets.eyes)]);
+const f=inspectFrame(sit,15,2),original=originalFrame(sit,15,2),gaze=prepareGaze(atlas),reference=originalGaze(atlas);
+const make=()=>{const c=document.createElement('canvas');c.width=c.height=512;return c;};
+const a=make(),b=make(),base=make(),ac=a.getContext('2d',{willReadFrequently:true}),bc=b.getContext('2d',{willReadFrequently:true}),basec=base.getContext('2d',{willReadFrequently:true});
+const sprite=(ctx,frame)=>{ctx.clearRect(0,0,512,512);ctx.drawImage(frame.image,frame.dx,frame.dy,frame.width*1.36,frame.height*1.36);};
+const originalBlink=(ctx,frame,blink)=>{
+ if(blink>0)for(const eye of frame.eyes){
+  ctx.save();ctx.translate(frame.dx+eye.x*1.36,frame.dy+eye.y*1.36);ctx.scale(1.36,1.36);
+  ctx.beginPath();ctx.ellipse(eye.w/2,eye.h/2,eye.w/2+1,eye.h/2+1,0,0,Math.PI*2);ctx.clip();
+  const shade=ctx.createLinearGradient(0,0,eye.w,eye.h);shade.addColorStop(0,'#00643d');shade.addColorStop(1,'#058754');ctx.fillStyle=shade;
+  ctx.fillRect(-2,-2,eye.w+4,(eye.h+4)*blink);ctx.restore();
+ }
+};
+sprite(basec,f);const baseline=basec.getImageData(0,0,512,512).data;let mismatch=0,outside=0,frames=0;
+for(let index=0;index<25;index++)for(const blink of [0,.35,.8,1,0]){
+ sprite(ac,f);drawGaze(ac,f,gaze,index);drawBuddyBlink(ac,f,blink);
+ sprite(bc,original);originalDraw(bc,original,reference,index);originalBlink(bc,original,blink);
+ const x=ac.getImageData(0,0,512,512).data,y=bc.getImageData(0,0,512,512).data;frames++;
+ for(let n=0;n<x.length;n+=4){
+  if(x[n]!==y[n]||x[n+1]!==y[n+1]||x[n+2]!==y[n+2]||x[n+3]!==y[n+3])mismatch++;
+  const px=(n/4)%512,py=Math.floor(n/4/512),eye=f.eyes.some(e=>px>=f.dx+(e.x-2)*1.36&&px<=f.dx+(e.x+e.w+2)*1.36&&py>=f.dy+(e.y-2)*1.36&&py<=f.dy+(e.y+e.h+2)*1.36);
+  if(!eye&&(x[n]!==baseline[n]||x[n+1]!==baseline[n+1]||x[n+2]!==baseline[n+2]||x[n+3]!==baseline[n+3]))outside++;
+ }
+}
+result.textContent=JSON.stringify({framesChecked:frames,pixelsDifferentFromFriend:mismatch,changedOutsideEyes:outside,atlas:'Original 25-pose artwork',status:mismatch===0&&outside===0?'PASS':'FAIL'},null,2);
+for(const [label,index,blink] of [['Neutral',12,0],['Left',10,0],['Right',14,0],['Up',2,0],['Down',22,0],['Blink half',12,.5],['Blink closed',12,1]]){
+ const c=make(),ctx=c.getContext('2d'),fig=document.createElement('figure'),caption=document.createElement('figcaption');
+ sprite(ctx,f);drawGaze(ctx,f,gaze,index);drawBuddyBlink(ctx,f,blink);caption.textContent=label;fig.append(caption,c);scene.append(fig);
+}
+let isReduced=false;
+const nativeMatch=window.matchMedia.bind(window),queries=[];
+window.matchMedia=q=>{if(!q.includes('prefers-reduced-motion'))return nativeMatch(q);const target=new EventTarget();Object.defineProperties(target,{matches:{get:()=>isReduced},media:{value:q}});queries.push(target);return target;};
+const live=document.querySelector('#live'),runtime=createScrollMascot(live);runtime.update(1);
+document.querySelector('#seated').onclick=()=>runtime.update(1);
+document.querySelector('#walk').onclick=()=>runtime.update(.5);
+document.querySelector('#neutral').onclick=()=>document.documentElement.dispatchEvent(new PointerEvent('pointerleave'));
+document.querySelector('#blur').onclick=()=>window.dispatchEvent(new Event('blur'));
+document.querySelector('#touch').onclick=()=>window.dispatchEvent(new PointerEvent('pointerdown',{pointerType:'touch',clientX:0,clientY:0}));
+for(const [name,x,y] of [['left',-10000,live.getBoundingClientRect().top+120],['right',10000,live.getBoundingClientRect().top+120],['up',180,-10000],['down',180,10000]])document.querySelector('#'+name).onclick=()=>{
+ const r=live.getBoundingClientRect(),eye=f.eyes[0];window.dispatchEvent(new PointerEvent('pointermove',{pointerType:'mouse',clientX:name==='up'||name==='down'?r.left+(f.dx+(eye.x+eye.w)*1.36)*r.width/512:x,clientY:name==='left'||name==='right'?r.top+(f.dy+(eye.y+eye.h/2)*1.36)*r.height/512:y}));
+};
+document.querySelector('#reduced').onclick=()=>{isReduced=true;queries.forEach(q=>q.dispatchEvent(new Event('change')));};
+document.querySelector('#normal').onclick=()=>{isReduced=false;queries.forEach(q=>q.dispatchEvent(new Event('change')));};
+const report=()=>document.querySelector('#live-result').textContent=JSON.stringify({...live.dataset,reduced:isReduced});
+new MutationObserver(report).observe(live,{attributes:true});report();
+document.querySelector('#run-live').onclick=async()=>{
+ const results=[],out=document.querySelector('#behavior'),wait=ms=>new Promise(r=>setTimeout(r,ms));
+ const checks=[['left','10'],['right','14'],['up','2'],['down','22'],['neutral','12'],['left','10'],['blur','12'],['right','14'],['touch','12'],['reduced','12']];
+ for(const [control,expected] of checks){document.querySelector('#'+control).click();await wait(450);results.push({control,expected,actual:live.dataset.gaze,pass:live.dataset.gaze===expected});out.textContent=JSON.stringify(results,null,2);}
+ const reducedBlink=live.dataset.blink;results.push({control:'reduced blink disabled',pass:reducedBlink==='0'});
+ document.querySelector('#normal').click();await wait(200);document.querySelector('#walk').click();await wait(300);
+ results.push({control:'reverse scroll disables gaze',pass:live.dataset.gaze==='inactive'&&live.dataset.pose==='walking-right'});
+ document.querySelector('#seated').click();await wait(300);document.querySelector('#neutral').click();
+ const seen=new Set(),observer=new MutationObserver(()=>seen.add(live.dataset.blink));observer.observe(live,{attributes:true});await wait(6000);observer.disconnect();
+ results.push({control:'independent blink while pointer is still',pass:seen.has('0')&&[...seen].some(v=>Number(v)>50)});
+ out.textContent=JSON.stringify({status:results.every(r=>r.pass)?'PASS':'FAIL',results},null,2);
+};
+window.addEventListener('pagehide',()=>runtime.destroy());
+</script>

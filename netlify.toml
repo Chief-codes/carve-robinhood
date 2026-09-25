@@ -5,6 +5,17 @@
 [build.environment]
   NODE_VERSION = "24"
 
+# Only content-hashed build assets are immutable; HTML always revalidates.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
+
 [[headers]]
   for = "/*"
   [headers.values]

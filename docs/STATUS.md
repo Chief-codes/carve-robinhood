@@ -1,4 +1,48 @@
-# Carve — current status, 22 September 2026
+# Carve — current status, 25 September 2026
+
+## Original Buddy reference restored — published
+
+- Restored the friend's actual 25-pose seated gaze renderer and original sine-blink timing, replacing the experimental native-eye/skin renderer described below. Existing original poses and lossless quality remain.
+- Browser comparison: 125 gaze/blink combinations exactly match the original compositor and leave all non-eye pixels unchanged. 73 tests and production build passed.
+- Create preview now uses the original Buddy greeting as a 585 KB looping GIF, with reduced-motion still and no effect on uploaded/draft media.
+- Live renderer checks passed: left/right/up/down, neutral on leave/blur/touch, reduced-motion stillness, reverse-scroll gaze shutoff and independent idle blink. Create GIF, caption and controls do not overlap; home-page greeting is hidden while seated and there is no horizontal overflow.
+- Production deployment `6ab663f669daad86fdc8f3b1`: https://carve-robinhood.netlify.app. Preview `6ab6633f1acf1e770c71d5a5` remains behind the existing Netlify team protection; that protection was not weakened.
+- Utilities, contract addresses, fees, wallet behavior, saved data and live Musebook feed unchanged. See `BUDDY-REFERENCE-RESTORE-2026-09-25.md`. Public repository is being synchronized from this tested source, retaining existing contracts and using GitHub's no-reply author email.
+
+## Buddy face/quality fixes and live Musebook feed
+
+- Replaced mismatched eye-atlas overlays with subtle native-eye texture motion. Blink contours follow the actual eyes (including iris interruptions) and sample original skin instead of filling oversized flat-colour ellipses. Neutral frames restore the exact base pixels. Native reduced-motion, offscreen/background sleep and progressive loading remain.
+- Character derivatives are now lossless WebP. All seven assets' visible pixels and native dimensions were compared with their original PNGs and matched. First buddy is 214 KB; later 1254px scenes stay deferred. The leaning renderer draws from its high-resolution original rather than a 314px intermediate, and the computer canvas uses 1254px. Fixed full-bleed scrollbar overflow.
+- Musebook opens on actual public messages/replies; polls every 15 seconds while visible, deduplicates IDs, links original conversations, and switches channels automatically. A 10-second shared cache limits upstream traffic. No preset conversations, key, paid AI, or posted messages. The separate write-your-own profile option and saved drafts remain; template buttons were removed.
+- Polling stops for hidden/offline tabs, capture/review and unmount; failures retain the last good feed with a warning and bounded retry backoff. The live feed never rewrites a captured inscription snapshot. Public docs updated.
+- Build and all 73 tests passed. Open/half/closed/gaze sheets checked for standing, seated and leaning art; actual home-page native gaze and zero horizontal overflow checked. Live lobby/townsquare feeds and changing retrieval timestamps checked. No financial transactions, contract changes or external Musebook writes.
+- Published and checked in production `6ab65d063ec90b6d57350ebf`: https://carve-robinhood.netlify.app. Details: `BUDDY-LIVE-MUSEBOOK-2026-09-25.md`.
+
+## First-visit speed and unified Create theme
+
+- Public release `6ab651236cce80403d5744c3`: https://carve-robinhood.netlify.app. This supersedes the dark Create theme described in the previous release below.
+- Buddy renders immediately from a 53 KB derivative; later pose sheets/eye atlas load progressively and tutorial video is deferred. Native visual fallback survives failed animation downloads. Frame inspection is on-demand, not all 48 frames before first paint. Offscreen/background animation work sleeps.
+- All pages now share mint/cream styling, including uploads, preview, fees, buyback, storage plan and dialogs. Fixed nested sticky-stage scrolling and short-screen tutorial fit. Create/My workspace are lazy-loaded; hashed assets have long-lived immutable caching, but HTML and financial reads do not.
+- Build + 68 tests passed. Cold local first-view transfer about 420 KB; actual pose/computer scenes, blocked-animation fallback, desktop/390px Create and wallet dialog checked. Public buddy, theme, bundle identity, cache/CSP and live Musebook endpoint verified. No signed/broadcast transactions.
+- 13 critical utility files matched the pre-change backup. Saved drafts, fees, contract addresses and byte-verification behavior preserved. Details: `PERFORMANCE-2026-09-25.md`.
+
+## Design merge and simplified Musebook flow
+
+- Integrated the supplied 24 September friend-design archive: mint/cream theme, scroll-driven mascot, rigid computer-arm animation, launch tutorial and final launch invitation. Create remains dark emerald. All seven routes include the existing Musebook tab.
+- Preserved the current v5 addresses and launch, fee, buyback, migration, wallet, GIF, trading and inscription-verification implementations; older token support remains intact. The archive was not allowed to replace the newer capsule inspector, backend or local-storage features.
+- Musebook is now choose source → review exact posts → continue to Create. Live public browsing, local search, profile links on both official hosts, 1–8 selected posts, a visible exact preview, permission checkbox and safe draft backup. Advanced profile fields/downloads are collapsible.
+- The staged draft is saved before navigating to Create, so an immediate reload does not discard the capsule. Animation rendering skips unchanged eye frames; theme selection happens before route paint.
+- Validation: 65 unit tests; desktop/mobile layout across 390/675/1024/1440px; reduced-motion navigation; live public feed and capture; written-profile staging/reload; original-token three-file onchain reconstruction; simulated wallet connection/account change/disconnection; buyback switch and GIF browser checks. GIF test retained 10 frames while reducing 1,481,371 to 785,854 bytes.
+- Read-only mainnet simulations passed for the capsule and both buyback settings, plus a nonzero quote for the older token. No new wallet transaction was signed, sent or funded. This is not a new end-to-end mainnet launch or an independent security audit.
+- Published and checked at https://carve-robinhood.netlify.app in production deployment `6ab64a853520e62d29311d02` (`ready`). Public bundle matched the tested build; live Musebook feed/capture and all three original-token inscription proofs passed on the public site. Details: `DESIGN-MUSEBOOK-2026-09-25.md`.
+
+## Agent Capsules — public website update
+
+- Published at https://carve-robinhood.netlify.app/#/agents in production deployment `6ab3b616d529899c6476cae1`.
+- Creator-written public blueprints and read-only, attributed Musebook post snapshots become self-contained HTML in the existing website inscription slot. Image/GIF and audio remain usable; no new contracts, fee changes, AI subscriptions or autonomous actions.
+- Full draft backup before staging; original HTML can be explicitly preserved as a downloadable attachment. Verified onchain HTML capsules expose a configuration download. No running AI, authorship, ownership or endorsement is implied.
+- Build and all 63 frontend tests passed. Hosted preview feed and snapshot capture worked in Chrome. Read-only simulation against deployed v5 accepted a capsule launch; no transaction was signed or broadcast, and a live capsule token has not yet been launched.
+- Details, limits, source attribution and test evidence: [AGENT-CAPSULES.md](AGENT-CAPSULES.md).
 
 > Current website release is factory version 5 with optional trade-triggered buyback & burn. See [AUTO-RELEASE-2026-09-22.md](AUTO-RELEASE-2026-09-22.md) for the current addresses, source verification, exact fee split and test evidence. The user-approved deployment is complete. Sourcify reports exact matches for all four contracts; Blockscout submissions remain blocked by its security challenge. No live buyback-enabled test token has been launched by the agent.
 
